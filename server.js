@@ -44,7 +44,7 @@ app.get("/api/classify", async (req, res) => {
   }
 
   if (genderizeData.gender === null || genderizeData.count === 0) {
-    return sendError(res, 200, "No prediction available for the provided name");
+    return sendError(res, 422, "No prediction available for the provided name");
   }
 
   const probability  = genderizeData.probability;
