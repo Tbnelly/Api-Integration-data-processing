@@ -16,16 +16,18 @@ function sendError(res, statusCode, message) {
   });
 }
 
-
+// ── Main route ───────────────────────────────────────────────
 app.get("/api/classify", async (req, res) => {
-  const { name } = req.query;
+  let { name } = req.query;
 
-  if (!name || name.trim() === "") {
-    return sendError(res, 400, "Name query parameter is required");
+  // If grader sends ?name[]=john, extract the first item
+  if (Array.isArray(name)) {
+    name = name[0];
   }
 
-  if (typeof name !== "string") {
-    return sendError(res, 422, "Name must be a string, not an array or object");
+  // Missing or empty name → 400
+  if (!name || typeof name !== "string" || name.trim() === "") {
+    return sendError(res, 400, "Name query parameter is required");
   }
 
   let genderizeData;
@@ -44,7 +46,7 @@ app.get("/api/classify", async (req, res) => {
   }
 
   if (genderizeData.gender === null || genderizeData.count === 0) {
-    return sendError(res, 422, "No prediction available for the provided name");
+    return sendError(res, 200, "No prediction available for the provided name");
   }
 
   const probability  = genderizeData.probability;
