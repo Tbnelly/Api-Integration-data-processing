@@ -1,14 +1,14 @@
 import express from "express";
+import serverless from "serverless-http";
 
 const app = express();
 
-// ── CORS middleware ──────────────────────────────────────────
+// CORS
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   next();
 });
 
-// ── Helper: send error responses ────────────────────────────
 function sendError(res, statusCode, message) {
   return res.status(statusCode).json({
     status: "error",
@@ -16,21 +16,19 @@ function sendError(res, statusCode, message) {
   });
 }
 
-// ── Main route ───────────────────────────────────────────────
 app.get("/api/classify", async (req, res) => {
   let { name } = req.query;
 
-  // If grader sends ?name[]=john, extract the first item
   if (Array.isArray(name)) {
     name = name[0];
   }
 
-  // Missing or empty name → 400
   if (!name || typeof name !== "string" || name.trim() === "") {
     return sendError(res, 400, "Name query parameter is required");
   }
 
   let genderizeData;
+
   try {
     const response = await fetch(
       `https://api.genderize.io?name=${encodeURIComponent(name.trim())}`
@@ -45,19 +43,20 @@ app.get("/api/classify", async (req, res) => {
     return sendError(res, 500, "Failed to reach the external classification API");
   }
 
-  if (genderizeData.gender === null || genderizeData.count === 0) {
-    return sendError(res, 200, "No prediction available for the provided name");
+  if (!genderizeData.gender || genderizeData.count === 0) {
+    return sendError(res, 422, "No prediction available for the provided name");
   }
 
-  const probability  = genderizeData.probability;
-  const sample_size  = genderizeData.count;
+  const probability = Number(genderizeData.probability);
+  const sample_size = Number(genderizeData.count);
+
   const is_confident = probability >= 0.7 && sample_size >= 100;
 
   return res.status(200).json({
     status: "success",
     data: {
-      name:         genderizeData.name,
-      gender:       genderizeData.gender,
+      name: genderizeData.name,
+      gender: genderizeData.gender,
       probability,
       sample_size,
       is_confident,
@@ -66,9 +65,4 @@ app.get("/api/classify", async (req, res) => {
   });
 });
 
-// ── Local dev: listen normally; Vercel: export the app ───────
-if (process.env.NODE_ENV !== "production") {
-  app.listen(3000, () => console.log("Server running on http://localhost:3000"));
-}
-
-export default app;
+export default serverless(app);
