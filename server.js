@@ -16,7 +16,7 @@ function sendError(res, statusCode, message) {
   });
 }
 
-// ── Main route ───────────────────────────────────────────────
+
 app.get("/api/classify", async (req, res) => {
   const { name } = req.query;
 
