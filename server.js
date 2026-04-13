@@ -1,7 +1,6 @@
 import express from "express";
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 // ── CORS middleware ──────────────────────────────────────────
 app.use((req, res, next) => {
@@ -21,19 +20,14 @@ function sendError(res, statusCode, message) {
 app.get("/api/classify", async (req, res) => {
   const { name } = req.query;
 
-  // 1. Missing or empty name → 400
   if (!name || name.trim() === "") {
     return sendError(res, 400, "Name query parameter is required");
   }
 
-  // 2. name must be a string (it always is from query params,
-  //    but we guard against things like ?name[]=john which Express
-  //    parses as an array)
   if (typeof name !== "string") {
     return sendError(res, 422, "Name must be a string, not an array or object");
   }
 
-  // 3. Call the external Genderize API
   let genderizeData;
   try {
     const response = await fetch(
@@ -46,16 +40,13 @@ app.get("/api/classify", async (req, res) => {
 
     genderizeData = await response.json();
   } catch (err) {
-    // Network failure, DNS error, timeout, etc.
     return sendError(res, 500, "Failed to reach the external classification API");
   }
 
-  // 4. Handle no-prediction cases
   if (genderizeData.gender === null || genderizeData.count === 0) {
     return sendError(res, 200, "No prediction available for the provided name");
   }
 
-  // 5. Build the structured response
   const probability  = genderizeData.probability;
   const sample_size  = genderizeData.count;
   const is_confident = probability >= 0.7 && sample_size >= 100;
@@ -73,7 +64,9 @@ app.get("/api/classify", async (req, res) => {
   });
 });
 
-// ── Start server ─────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+// ── Local dev: listen normally; Vercel: export the app ───────
+if (process.env.NODE_ENV !== "production") {
+  app.listen(3000, () => console.log("Server running on http://localhost:3000"));
+}
+
+export default app;
